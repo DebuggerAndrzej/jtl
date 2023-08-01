@@ -3,31 +3,50 @@ package main
 import (
 	"fmt"
 
+	list "github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type model struct {
-	cursor int
+type Model struct {
+	issues list.Model
+	err    error
 }
 
-func (m model) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen)
+func New() *Model {
+	return &Model{}
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg.(type) {
-	case tea.KeyMsg:
-		return m, tea.Quit
+func (m *Model) initIssues(width, height int) {
+	m.issues = list.New([]list.Item{}, list.NewDefaultDelegate(), width, height)
+	m.issues.Title = "Issues"
+	m.issues.SetItems([]list.Item{
+		Issue{title: "Fake task", short_description: "Some description for this task", status: "Done"},
+		Issue{title: "Some task", short_description: "Another description for another task", status: "Done"},
+		Issue{title: "Stop messing around", short_description: "Start doing overtimes", status: "Done"},
+	})
+}
+
+func (m Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.initIssues(msg.Width, msg.Height)
 	}
-	return m, nil
+	var cmd tea.Cmd
+	m.issues, cmd = m.issues.Update(msg)
+	return m, cmd
 }
 
-func (m model) View() string {
-	return fmt.Sprintf("Hi. This program won't exit. To quit press any key.\n")
+func (m Model) View() string {
+	return m.issues.View()
 }
 
 func main() {
-	p := tea.NewProgram(model{5}, tea.WithAltScreen())
+	m := New()
+	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Println(err)
