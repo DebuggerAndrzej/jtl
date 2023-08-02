@@ -31,8 +31,6 @@ func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, keys.choose):
-			return m.NewStatusMessage(statusMessageStyle("You chose " + title))
 		case key.Matches(msg, keys.remove):
 			index := m.Index()
 			m.RemoveItem(index)
@@ -51,7 +49,15 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		return
 	}
 
-	str := fmt.Sprintf("%d. %s     %s \n %s", index+1, i.title, i.original_estimate, i.short_description)
+	str := fmt.Sprintf(
+		"%d. %s    logged %s of %s estimate  %s \n %s",
+		index+1,
+		i.title,
+		i.logged_time,
+		i.original_estimate,
+		statusStyle.Render(i.status),
+		i.short_description,
+	)
 
 	fn := itemStyle.Render
 	if index == m.Index() {
@@ -64,17 +70,12 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 }
 
 type delegateKeyMap struct {
-	choose key.Binding
 	remove key.Binding
 	log    key.Binding
 }
 
 func newDelegateKeyMap() *delegateKeyMap {
 	return &delegateKeyMap{
-		choose: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "choose"),
-		),
 		remove: key.NewBinding(
 			key.WithKeys("x", "backspace"),
 			key.WithHelp("x", "delete"),
