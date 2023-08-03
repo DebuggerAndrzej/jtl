@@ -17,12 +17,12 @@ func New() *Model {
 }
 
 func (m *Model) initIssues(width, height int) {
-	m.issues = list.New([]list.Item{}, list.NewDefaultDelegate(), width, height)
+	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
 	m.issues.Title = "Issues"
 	m.issues.SetItems([]list.Item{
-		Issue{title: "Fake task", short_description: "Some description for this task", status: "Done"},
-		Issue{title: "Some task", short_description: "Another description for another task", status: "Done"},
-		Issue{title: "Stop messing around", short_description: "Start doing overtimes", status: "Done"},
+		Issue{title: "Fake task", short_description: "Some description for this task", status: "Done", original_estimate: "2h", logged_time: "0h"},
+		Issue{title: "Some task", short_description: "Another description for another task", status: "Done", original_estimate: "4h", logged_time: "2h"},
+		Issue{title: "Stop messing around", short_description: "Start doing overtimes", status: "Done", original_estimate: "6h", logged_time: "3h"},
 	})
 }
 
@@ -33,7 +33,8 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.initIssues(msg.Width, msg.Height)
+		m.initIssues(msg.Width, msg.Height-4)
+		return m, nil
 	}
 	var cmd tea.Cmd
 	m.issues, cmd = m.issues.Update(msg)
@@ -41,7 +42,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	return m.issues.View()
+	return appStyle.Render(m.issues.View())
+
 }
 
 func main() {
