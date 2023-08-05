@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	list "github.com/charmbracelet/bubbles/list"
+	textinput "github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Model struct {
 	issues list.Model
+	input  textinput.Model
 	err    error
 	loaded bool
 }
@@ -18,6 +20,11 @@ func New() *Model {
 }
 
 func (m *Model) initIssues(width, height int) {
+	input := textinput.New()
+	input.Placeholder = "Log hours in (float)h format"
+	input.CharLimit = 250
+	input.Width = 50
+	m.input = input
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
 	m.issues.Title = "Issues"
 	m.issues.SetItems([]list.Item{
@@ -56,19 +63,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if !m.loaded {
-			m.initIssues(msg.Width, msg.Height-2)
+			m.initIssues(msg.Width, msg.Height-3)
 			m.loaded = true
 		}
 		return m, nil
+	case tea.KeyMsg:
+		var cmd tea.Cmd
+		keypress := msg.String()
+		if !m.input.Focused() {
+			if keypress == "w" {
+				m.input.Focus()
+			}
+			m.issues, cmd = m.issues.Update(msg)
+			return m, cmd
+		}
+		if m.input.Focused() {
+			if keypress == "q" {
+				return m, tea.Quit
+			}
+			if keypress == "enter" {
+				_ = m.input.Value()
+			}
+			m.input, cmd = m.input.Update(msg)
+		}
+
 	}
-	var cmd tea.Cmd
-	m.issues, cmd = m.issues.Update(msg)
-	return m, cmd
+	return m, nil
 }
 
 func (m Model) View() string {
 	if m.loaded {
-		return appStyle.Render(m.issues.View())
+		if m.input.Focused() {
+			return appStyle.Render(m.issues.View() + "\n" + m.input.View())
+		}
+		return appStyle.Render(m.issues.View() + "\n")
 	}
 	return "Loading..."
 

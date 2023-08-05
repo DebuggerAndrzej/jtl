@@ -33,7 +33,6 @@ func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 		switch {
 		case key.Matches(msg, keys.choose):
 			return m.NewStatusMessage(statusMessageStyle("You chose " + title))
-
 		case key.Matches(msg, keys.remove):
 			index := m.Index()
 			m.RemoveItem(index)
@@ -67,6 +66,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 type delegateKeyMap struct {
 	choose key.Binding
 	remove key.Binding
+	log    key.Binding
 }
 
 func newDelegateKeyMap() *delegateKeyMap {
@@ -78,6 +78,10 @@ func newDelegateKeyMap() *delegateKeyMap {
 		remove: key.NewBinding(
 			key.WithKeys("x", "backspace"),
 			key.WithHelp("x", "delete"),
+		),
+		log: key.NewBinding(
+			key.WithKeys("w"),
+			key.WithHelp("w", "Log hours"),
 		),
 	}
 }
