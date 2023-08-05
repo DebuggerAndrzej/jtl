@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	help "github.com/charmbracelet/bubbles/help"
 	list "github.com/charmbracelet/bubbles/list"
 	textinput "github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,8 @@ type Model struct {
 	input  textinput.Model
 	err    error
 	loaded bool
+	help   help.Model
+	keys   keyMap
 }
 
 func New() *Model {
@@ -20,6 +23,8 @@ func New() *Model {
 }
 
 func (m *Model) initIssues(width, height int) {
+	m.keys = keys
+	m.help = help.New()
 	input := textinput.New()
 	input.Placeholder = "Log hours in (float)h format"
 	input.CharLimit = 250
@@ -27,6 +32,7 @@ func (m *Model) initIssues(width, height int) {
 	m.input = input
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
 	m.issues.Title = "Issues"
+	m.issues.SetShowHelp(false)
 	m.issues.SetItems([]list.Item{
 		Issue{title: "Fake task", short_description: "Some description for this task", status: "Done", original_estimate: "2h", logged_time: "0h"},
 		Issue{title: "Some task", short_description: "Another description for another task", status: "Done", original_estimate: "4h", logged_time: "2h"},
@@ -98,7 +104,7 @@ func (m Model) View() string {
 		if m.input.Focused() {
 			return appStyle.Render(m.issues.View() + "\n" + m.input.View())
 		}
-		return appStyle.Render(m.issues.View() + "\n")
+		return appStyle.Render(m.issues.View() + "\n" + "  " + m.help.View(m.keys))
 	}
 	return "Loading..."
 
