@@ -60,6 +60,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if !m.loaded {
@@ -68,15 +69,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		var cmd tea.Cmd
 		keypress := msg.String()
-		if !m.input.Focused() {
-			if keypress == "w" {
-				m.input.Focus()
-			}
-			m.issues, cmd = m.issues.Update(msg)
-			return m, cmd
-		}
 		if m.input.Focused() {
 			if keypress == "q" {
 				return m, tea.Quit
@@ -86,7 +79,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.input, cmd = m.input.Update(msg)
 		}
+		if !m.input.Focused() {
+			if keypress == "w" {
+				m.input.Focus()
+			}
+		}
 
+	}
+	if !m.input.Focused() {
+		m.issues, cmd = m.issues.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
