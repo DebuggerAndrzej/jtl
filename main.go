@@ -111,6 +111,7 @@ func (m Model) View() string {
 }
 
 func main() {
+	_ = get_toml_config()
 	m := New()
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
