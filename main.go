@@ -99,7 +99,7 @@ func (m Model) View() string {
 		}
 		return appStyle.Render(m.issues.View() + "\n" + "  " + m.help.View(m.keys))
 	}
-	return "Loading..."
+	return loadingStyle.Render("Loading...")
 
 }
 

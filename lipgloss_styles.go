@@ -7,10 +7,14 @@ import (
 )
 
 var (
-	width, _, _       = term.GetSize(int(os.Stdout.Fd()))
-	appStyle          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).Width(width - 3)
-	statusStyle       = lipgloss.NewStyle().Bold(true).PaddingLeft(5)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(2).Width(width / 2)
+	width, height, _ = term.GetSize(int(os.Stdout.Fd()))
+	appStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).Width(width - 3)
+	statusStyle      = lipgloss.NewStyle().Bold(true).PaddingLeft(5)
+	itemStyle        = lipgloss.NewStyle().PaddingLeft(2).Width(width / 2)
+	loadingStyle     = lipgloss.NewStyle().
+				MarginLeft((width - 10) / 2).
+				MarginTop((height - 2) / 2).
+				Border(lipgloss.RoundedBorder())
 	selectedItemStyle = lipgloss.NewStyle().
 				PaddingLeft(4).
 				Foreground(lipgloss.Color("#03fc6b")).
