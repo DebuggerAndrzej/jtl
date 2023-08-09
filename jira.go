@@ -70,6 +70,21 @@ func log_hours_for_issue(client *jira.Client, id, time string) {
 	client.Issue.AddWorklogRecord(id, &jira.WorklogRecord{TimeSpent: time})
 }
 
+func logHoursForIssuesScrumMeetings(client *jira.Client, issueId, timeToLog string) {
+	issueCustomFields, _, _ := client.Issue.GetCustomFields(issueId)
+	issuesEpic, _, _ := client.Issue.Get(issueCustomFields["customfield_12790"], nil)
+	var scrumIssue string
+	for _, issueLink := range issuesEpic.Fields.IssueLinks {
+		outward_issue := issueLink.OutwardIssue
+		if outward_issue != nil && strings.Contains(issueLink.OutwardIssue.Fields.Summary, "Scrum meetings") {
+			scrumIssue = issueLink.OutwardIssue.Key
+		}
+	}
+	if scrumIssue != "" {
+		log_hours_for_issue(client, scrumIssue, timeToLog)
+	}
+}
+
 func incrementIssueStatus(client *jira.Client, id, status string) {
 	switch status {
 	case "Open":

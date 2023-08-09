@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/andygrunwald/go-jira"
+	jira "github.com/andygrunwald/go-jira"
 	help "github.com/charmbracelet/bubbles/help"
 	list "github.com/charmbracelet/bubbles/list"
 	textinput "github.com/charmbracelet/bubbles/textinput"
@@ -11,14 +11,15 @@ import (
 )
 
 type Model struct {
-	issues list.Model
-	input  textinput.Model
-	err    error
-	loaded bool
-	help   help.Model
-	keys   keyMap
-	client *jira.Client
-	config *Config
+	issues     list.Model
+	input      textinput.Model
+	err        error
+	loaded     bool
+	help       help.Model
+	keys       keyMap
+	client     *jira.Client
+	config     *Config
+	input_type string
 }
 
 func New(jira_client *jira.Client, config *Config) *Model {
@@ -48,7 +49,7 @@ func (m *Model) initIssues(width, height int) {
 	m.issues.SetShowHelp(false)
 	setIssueListItems(m)
 }
-func getSelectedItemID(l *list.Model) string {
+func getSelectedItemTitle(l *list.Model) string {
 	if i, ok := l.SelectedItem().(Issue); ok {
 		return i.title
 	} else {
@@ -86,10 +87,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if keypress == "enter" {
 				time_to_log := m.input.Value()
 				if time_to_log != "" {
-					issue_id := getSelectedItemID(&m.issues)
-					log_hours_for_issue(m.client, issue_id, time_to_log)
-					m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
-					setIssueListItems(&m)
+					issue_id := getSelectedItemTitle(&m.issues)
+					if m.input_type == "normal" {
+						log_hours_for_issue(m.client, issue_id, time_to_log)
+						m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
+						setIssueListItems(&m)
+					} else {
+						logHoursForIssuesScrumMeetings(m.client, issue_id, time_to_log)
+						m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue's scrum meetings", time_to_log, issue_id)))
+					}
+
 				}
 				m.input.Blur()
 			}
@@ -97,20 +104,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if !m.input.Focused() {
 			if keypress == "w" {
+				m.input_type = "normal"
+				m.input.Focus()
+			}
+			if keypress == "s" {
+				m.input_type = "scrum"
 				m.input.Focus()
 			}
 			if keypress == "r" {
 				setIssueListItems(&m)
 			}
 			if keypress == "e" {
-				issue_id := getSelectedItemID(&m.issues)
+				issue_id := getSelectedItemTitle(&m.issues)
 				status := getSelectedItemStatus(&m.issues)
 				incrementIssueStatus(m.client, issue_id, status)
 				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You incremented status on %s issue", issue_id)))
 				setIssueListItems(&m)
 			}
 			if keypress == "E" {
-				issue_id := getSelectedItemID(&m.issues)
+				issue_id := getSelectedItemTitle(&m.issues)
 				status := getSelectedItemStatus(&m.issues)
 				decrementIssueStatus(m.client, issue_id, status)
 				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You decremented status on %s issue", issue_id)))

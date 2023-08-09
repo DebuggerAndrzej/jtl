@@ -4,6 +4,7 @@ import "github.com/charmbracelet/bubbles/key"
 
 type keyMap struct {
 	Log             key.Binding
+	LogUnderScrum   key.Binding
 	IncrementStatus key.Binding
 	DecrementStatus key.Binding
 	RefreshIssues   key.Binding
@@ -14,6 +15,7 @@ type keyMap struct {
 func (k keyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		k.Log,
+		k.LogUnderScrum,
 		k.RefreshIssues,
 		k.IncrementStatus,
 		k.DecrementStatus,
@@ -30,6 +32,10 @@ var keys = keyMap{
 	Log: key.NewBinding(
 		key.WithKeys("w"),
 		key.WithHelp("w", "log hours"),
+	),
+	LogUnderScrum: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "log hours under scrum issue"),
 	),
 	RefreshIssues: key.NewBinding(
 		key.WithKeys("r"),
