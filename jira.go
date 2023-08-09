@@ -29,11 +29,16 @@ func get_jira_client(config *Config) *jira.Client {
 
 }
 
-func get_all_jira_issues_for_assignee(client *jira.Client) []Issue {
+func get_all_jira_issues_for_assignee(client *jira.Client, config *Config) []Issue {
 	opt := &jira.SearchOptions{
 		MaxResults: 1000,
 	}
-	jql := "assignee = currentuser()"
+	var jql string
+	if config.Issues != "" {
+		jql = fmt.Sprintf("assignee = currentuser() OR key in (%s)", config.Issues)
+	} else {
+		jql = "assignee = currentuser()"
+	}
 	issues, _, err := client.Issue.Search(jql, opt)
 	if err != nil {
 		return nil

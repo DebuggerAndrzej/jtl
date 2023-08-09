@@ -11,6 +11,7 @@ type Config struct {
 	Username      string
 	Password      string
 	Jira_base_url string
+	Issues        string
 }
 
 func get_toml_config() *Config {

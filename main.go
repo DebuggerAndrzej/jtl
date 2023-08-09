@@ -18,14 +18,15 @@ type Model struct {
 	help   help.Model
 	keys   keyMap
 	client *jira.Client
+	config *Config
 }
 
-func New(jira_client *jira.Client) *Model {
-	return &Model{client: jira_client}
+func New(jira_client *jira.Client, config *Config) *Model {
+	return &Model{client: jira_client, config: config}
 }
 
 func setIssueListItems(m *Model) {
-	jira_issues := get_all_jira_issues_for_assignee(m.client)
+	jira_issues := get_all_jira_issues_for_assignee(m.client, m.config)
 	var s []list.Item
 	for _, jira_issue := range jira_issues {
 		s = append(s, jira_issue)
@@ -139,7 +140,7 @@ func (m Model) View() string {
 func main() {
 	config := get_toml_config()
 	client := get_jira_client(config)
-	m := New(client)
+	m := New(client, config)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
