@@ -55,6 +55,14 @@ func getSelectedItemID(l *list.Model) string {
 	}
 }
 
+func getSelectedItemStatus(l *list.Model) string {
+	if i, ok := l.SelectedItem().(Issue); ok {
+		return i.status
+	} else {
+		panic(ok)
+	}
+}
+
 func (m Model) Init() tea.Cmd {
 	return nil
 }
@@ -76,11 +84,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if keypress == "enter" {
 				time_to_log := m.input.Value()
-				issue_id := getSelectedItemID(&m.issues)
-				log_hours_for_issue(m.client, issue_id, time_to_log)
+				if time_to_log != "" {
+					issue_id := getSelectedItemID(&m.issues)
+					log_hours_for_issue(m.client, issue_id, time_to_log)
+					m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
+					setIssueListItems(&m)
+				}
 				m.input.Blur()
-				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
-				setIssueListItems(&m)
 			}
 			m.input, cmd = m.input.Update(msg)
 		}
@@ -89,6 +99,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.Focus()
 			}
 			if keypress == "r" {
+				setIssueListItems(&m)
+			}
+			if keypress == "e" {
+				issue_id := getSelectedItemID(&m.issues)
+				status := getSelectedItemStatus(&m.issues)
+				incrementIssueStatus(m.client, issue_id, status)
+				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You incremented status on %s issue", issue_id)))
+				setIssueListItems(&m)
+			}
+			if keypress == "E" {
+				issue_id := getSelectedItemID(&m.issues)
+				status := getSelectedItemStatus(&m.issues)
+				decrementIssueStatus(m.client, issue_id, status)
+				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You decremented status on %s issue", issue_id)))
 				setIssueListItems(&m)
 			}
 		}
@@ -113,7 +137,6 @@ func (m Model) View() string {
 }
 
 func main() {
-	fmt.Println("hej")
 	config := get_toml_config()
 	client := get_jira_client(config)
 	m := New(client)

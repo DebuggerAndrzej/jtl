@@ -64,3 +64,35 @@ func get_all_jira_issues_for_assignee(client *jira.Client) []Issue {
 func log_hours_for_issue(client *jira.Client, id, time string) {
 	client.Issue.AddWorklogRecord(id, &jira.WorklogRecord{TimeSpent: time})
 }
+
+func incrementIssueStatus(client *jira.Client, id, status string) {
+	switch status {
+	case "Open":
+		doTransitionToStatus(client, id, "In Progress")
+	case "In Progress":
+		doTransitionToStatus(client, id, "In Review")
+	case "In Review":
+		doTransitionToStatus(client, id, "Done")
+	}
+}
+func decrementIssueStatus(client *jira.Client, id, status string) {
+	switch status {
+	case "In Progress":
+		doTransitionToStatus(client, id, "Re-open")
+	case "In Review":
+		doTransitionToStatus(client, id, "In Progress")
+	}
+}
+
+func doTransitionToStatus(client *jira.Client, id, status string) {
+	var transitionID string
+	possibleTransitions, _, _ := client.Issue.GetTransitions(id)
+	for _, v := range possibleTransitions {
+		if v.Name == status {
+			transitionID = v.ID
+			break
+		}
+	}
+
+	client.Issue.DoTransition(id, transitionID)
+}
