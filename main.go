@@ -24,10 +24,19 @@ func New(jira_client *jira.Client) *Model {
 	return &Model{client: jira_client}
 }
 
+func setIssueListItems(m *Model) {
+	jira_issues := get_all_jira_issues_for_assignee(m.client)
+	var s []list.Item
+	for _, jira_issue := range jira_issues {
+		s = append(s, jira_issue)
+	}
+	m.issues.ResetSelected()
+	m.issues.SetItems(s)
+}
+
 func (m *Model) initIssues(width, height int) {
 	m.keys = keys
 	m.help = help.New()
-	jira_issues := get_all_jira_issues_for_assignee(m.client)
 	input := textinput.New()
 	input.Placeholder = "Log hours in (float)h format"
 	input.CharLimit = 250
@@ -36,11 +45,7 @@ func (m *Model) initIssues(width, height int) {
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
 	m.issues.Title = "Issues"
 	m.issues.SetShowHelp(false)
-	var s []list.Item
-	for _, jira_issue := range jira_issues {
-		s = append(s, jira_issue)
-	}
-	m.issues.SetItems(s)
+	setIssueListItems(m)
 }
 func getSelectedItemID(l *list.Model) string {
 	if i, ok := l.SelectedItem().(Issue); ok {
@@ -75,12 +80,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log_hours_for_issue(m.client, issue_id, time_to_log)
 				m.input.Blur()
 				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
+				setIssueListItems(&m)
 			}
 			m.input, cmd = m.input.Update(msg)
 		}
 		if !m.input.Focused() {
 			if keypress == "w" {
 				m.input.Focus()
+			}
+			if keypress == "r" {
+				setIssueListItems(&m)
 			}
 		}
 

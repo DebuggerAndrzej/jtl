@@ -38,9 +38,7 @@ func get_all_jira_issues_for_assignee(client *jira.Client) []Issue {
 	if err != nil {
 		return nil
 	}
-	for _, issue := range issues {
-		fmt.Println(issue)
-	}
+
 	var iss []Issue
 
 	for _, issue := range issues {
