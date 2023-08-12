@@ -1,21 +1,17 @@
-package main
+package backend
 
 import (
 	"fmt"
-	"github.com/BurntSushi/toml"
 	"os"
 	"path"
+
+	"github.com/BurntSushi/toml"
+
+	"jtl/backend/entities"
 )
 
-type Config struct {
-	Username      string
-	Password      string
-	Jira_base_url string
-	Issues        string
-}
-
-func get_toml_config() *Config {
-	var config Config
+func GetTomlConfig() *entities.Config {
+	var config entities.Config
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

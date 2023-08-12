@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"fmt"
@@ -8,6 +8,9 @@ import (
 	list "github.com/charmbracelet/bubbles/list"
 	textinput "github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+
+	"jtl/backend"
+	"jtl/backend/entities"
 )
 
 type Model struct {
@@ -18,48 +21,47 @@ type Model struct {
 	help       help.Model
 	keys       keyMap
 	client     *jira.Client
-	config     *Config
+	config     *entities.Config
 	input_type string
 }
 
-func New(jira_client *jira.Client, config *Config) *Model {
-	return &Model{client: jira_client, config: config}
+func New(jiraClient *jira.Client, config *entities.Config) *Model {
+	return &Model{client: jiraClient, config: config}
 }
 
 func setIssueListItems(m *Model) {
-	jira_issues := get_all_jira_issues_for_assignee(m.client, m.config)
-	var s []list.Item
-	for _, jira_issue := range jira_issues {
-		s = append(s, jira_issue)
+	jiraIssues := backend.GetAllJiraIssuesForAssignee(m.client, m.config)
+	var issues []list.Item
+	for _, jiraIssue := range jiraIssues {
+		issues = append(issues, jiraIssue)
 	}
 	m.issues.ResetSelected()
-	m.issues.SetItems(s)
+	m.issues.SetItems(issues)
 }
 
-func (m *Model) initIssues(width, height int) {
+func (m *Model) initView(width, height int) {
 	m.keys = keys
 	m.help = help.New()
 	input := textinput.New()
 	input.Placeholder = "Log hours in (float)h format"
-	input.CharLimit = 250
-	input.Width = 50
 	m.input = input
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
 	m.issues.Title = "Issues"
 	m.issues.SetShowHelp(false)
 	setIssueListItems(m)
 }
+
 func getSelectedItemTitle(l *list.Model) string {
-	if i, ok := l.SelectedItem().(Issue); ok {
-		return i.title
+	if i, ok := l.SelectedItem().(entities.Issue); ok {
+		return i.Key
 	} else {
 		panic(ok)
 	}
 }
 
 func getSelectedItemStatus(l *list.Model) string {
-	if i, ok := l.SelectedItem().(Issue); ok {
-		return i.status
+	if i, ok := l.SelectedItem().(entities.Issue); ok {
+		return i.Status
 	} else {
 		panic(ok)
 	}
@@ -74,7 +76,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if !m.loaded {
-			m.initIssues(msg.Width, msg.Height-3)
+			m.initView(msg.Width, msg.Height-3)
 			m.loaded = true
 		}
 		return m, nil
@@ -89,11 +91,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if time_to_log != "" {
 					issue_id := getSelectedItemTitle(&m.issues)
 					if m.input_type == "normal" {
-						log_hours_for_issue(m.client, issue_id, time_to_log)
+						backend.LogHoursForIssue(m.client, issue_id, time_to_log)
 						m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
 						setIssueListItems(&m)
 					} else {
-						logHoursForIssuesScrumMeetings(m.client, issue_id, time_to_log)
+						backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, time_to_log)
 						m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue's scrum meetings", time_to_log, issue_id)))
 					}
 
@@ -117,14 +119,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if keypress == "e" {
 				issue_id := getSelectedItemTitle(&m.issues)
 				status := getSelectedItemStatus(&m.issues)
-				incrementIssueStatus(m.client, issue_id, status)
+				backend.IncrementIssueStatus(m.client, issue_id, status)
 				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You incremented status on %s issue", issue_id)))
 				setIssueListItems(&m)
 			}
 			if keypress == "E" {
 				issue_id := getSelectedItemTitle(&m.issues)
 				status := getSelectedItemStatus(&m.issues)
-				decrementIssueStatus(m.client, issue_id, status)
+				backend.DecrementIssueStatus(m.client, issue_id, status)
 				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You decremented status on %s issue", issue_id)))
 				setIssueListItems(&m)
 			}
@@ -149,10 +151,8 @@ func (m Model) View() string {
 
 }
 
-func main() {
-	config := get_toml_config()
-	client := get_jira_client(config)
-	m := New(client, config)
+func InitTui(config *entities.Config, jiraClient *jira.Client) {
+	m := New(jiraClient, config)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
