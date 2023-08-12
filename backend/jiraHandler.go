@@ -1,4 +1,4 @@
-package main
+package backend
 
 import (
 	"fmt"
@@ -6,40 +6,35 @@ import (
 	"time"
 
 	jira "github.com/andygrunwald/go-jira"
+
+	"github.com/amazurki/JTL/backend/entities"
 )
 
-func get_jira_issue_estimate_as_string(estimate int) string {
+func getJiraIssueEstimateAsString(estimate int) string {
 	est, _ := time.ParseDuration(fmt.Sprintf("%ds", estimate))
-	str_estimate := fmt.Sprintf(
+	strEstimate := fmt.Sprintf(
 		"%sh",
 		strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", est.Hours()), "0"), "."),
 	)
-	return str_estimate
+	return strEstimate
 }
 
-func get_jira_client(config *Config) *jira.Client {
-	base := config.Jira_base_url
-	tp := jira.BasicAuthTransport{
-		Username: config.Username,
-		Password: config.Password,
-	}
+func getJiraClient(config *Config) *jira.Client {
+	base := config.JiraBaseUrl
+	tp := jira.BasicAuthTransport{Username: config.Username, Password: config.Password}
 	client, _ := jira.NewClient(tp.Client(), base)
-
 	return client
 
 }
 
-func get_all_jira_issues_for_assignee(client *jira.Client, config *Config) []Issue {
-	opt := &jira.SearchOptions{
-		MaxResults: 1000,
-	}
+func getAllJiraIssuesForAssignee(client *jira.Client, config *Config) []Issue {
 	var jql string
 	if config.Issues != "" {
 		jql = fmt.Sprintf("assignee = currentuser() OR key in (%s)", config.Issues)
 	} else {
 		jql = "assignee = currentuser()"
 	}
-	issues, _, err := client.Issue.Search(jql, opt)
+	issues, _, err := client.Issue.Search(jql, nil)
 	if err != nil {
 		return nil
 	}
@@ -51,13 +46,13 @@ func get_all_jira_issues_for_assignee(client *jira.Client, config *Config) []Iss
 			iss = append(
 				iss,
 				Issue{
-					title:             issue.Key,
-					status:            issue.Fields.Status.Name,
-					short_description: issue.Fields.Summary,
-					original_estimate: get_jira_issue_estimate_as_string(
+					title:            issue.Key,
+					status:           issue.Fields.Status.Name,
+					shortDescription: issue.Fields.Summary,
+					originalEstimate: getJiraIssueEstimateAsString(
 						issue.Fields.TimeOriginalEstimate,
 					),
-					logged_time: get_jira_issue_estimate_as_string(issue.Fields.TimeSpent),
+					loggedTime: getJiraIssueEstimateAsString(issue.Fields.TimeSpent),
 				},
 			)
 		}
@@ -66,7 +61,7 @@ func get_all_jira_issues_for_assignee(client *jira.Client, config *Config) []Iss
 	return iss
 }
 
-func log_hours_for_issue(client *jira.Client, id, time string) {
+func logHoursForIssue(client *jira.Client, id, time string) {
 	client.Issue.AddWorklogRecord(id, &jira.WorklogRecord{TimeSpent: time})
 }
 
@@ -75,13 +70,13 @@ func logHoursForIssuesScrumMeetings(client *jira.Client, issueId, timeToLog stri
 	issuesEpic, _, _ := client.Issue.Get(issueCustomFields["customfield_12790"], nil)
 	var scrumIssue string
 	for _, issueLink := range issuesEpic.Fields.IssueLinks {
-		outward_issue := issueLink.OutwardIssue
-		if outward_issue != nil && strings.Contains(issueLink.OutwardIssue.Fields.Summary, "Scrum meetings") {
+		outwardIssue := issueLink.OutwardIssue
+		if outwardIssue != nil && strings.Contains(issueLink.OutwardIssue.Fields.Summary, "Scrum meetings") {
 			scrumIssue = issueLink.OutwardIssue.Key
 		}
 	}
 	if scrumIssue != "" {
-		log_hours_for_issue(client, scrumIssue, timeToLog)
+		logHoursForIssue(client, scrumIssue, timeToLog)
 	}
 }
 

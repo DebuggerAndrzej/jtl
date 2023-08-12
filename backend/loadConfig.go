@@ -1,18 +1,10 @@
-package main
+package backend
 
 import (
 	"fmt"
-	"github.com/BurntSushi/toml"
-	"os"
-	"path"
-)
 
-type Config struct {
-	Username      string
-	Password      string
-	Jira_base_url string
-	Issues        string
-}
+	"github.com/amazurki/JTL/backend/entities"
+)
 
 func get_toml_config() *Config {
 	var config Config

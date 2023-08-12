@@ -1,9 +1,10 @@
-package main
+package ui
 
 import (
-	"github.com/charmbracelet/lipgloss"
-	"golang.org/x/term"
 	"os"
+
+	lipgloss "github.com/charmbracelet/lipgloss"
+	term "golang.org/x/term"
 )
 
 var (
