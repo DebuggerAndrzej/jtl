@@ -35,7 +35,6 @@ func setIssueListItems(m *Model) {
 	for _, jiraIssue := range jiraIssues {
 		issues = append(issues, jiraIssue)
 	}
-	m.issues.ResetSelected()
 	m.issues.SetItems(issues)
 }
 
@@ -67,6 +66,36 @@ func getSelectedItemStatus(l *list.Model) string {
 	}
 }
 
+func logHours(m *Model) tea.Cmd {
+	if timeToLog := m.input.Value(); timeToLog != "" {
+		issue_id := getSelectedItemTitle(&m.issues)
+		if m.input_type == "normal" {
+			backend.LogHoursForIssue(m.client, issue_id, timeToLog)
+			m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", timeToLog, issue_id)))
+			setIssueListItems(m)
+		} else {
+			backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, timeToLog)
+			m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue's scrum meetings", timeToLog, issue_id)))
+		}
+	}
+	m.input.Blur()
+	m.input.Reset()
+	_, cmd := m.input.Update(nil)
+	return cmd
+}
+
+func changeIssueStatus(m *Model, changeType string) {
+	issue_id := getSelectedItemTitle(&m.issues)
+	status := getSelectedItemStatus(&m.issues)
+	if changeType == "increment" {
+		backend.IncrementIssueStatus(m.client, issue_id, status)
+	} else {
+		backend.DecrementIssueStatus(m.client, issue_id, status)
+	}
+	m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You %sed status on %s issue", changeType, issue_id)))
+	setIssueListItems(m)
+}
+
 func (m Model) Init() tea.Cmd {
 	return nil
 }
@@ -83,60 +112,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		keypress := msg.String()
 		if m.input.Focused() {
-			if keypress == "q" {
-				return m, tea.Quit
-			}
-			if keypress == "enter" {
-				time_to_log := m.input.Value()
-				if time_to_log != "" {
-					issue_id := getSelectedItemTitle(&m.issues)
-					if m.input_type == "normal" {
-						backend.LogHoursForIssue(m.client, issue_id, time_to_log)
-						m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", time_to_log, issue_id)))
-						setIssueListItems(&m)
-					} else {
-						backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, time_to_log)
-						m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue's scrum meetings", time_to_log, issue_id)))
-					}
-
-				}
-				m.input.Blur()
+			switch keypress {
+			case "enter":
+				cmd = logHours(&m)
+				return m, cmd
 			}
 			m.input, cmd = m.input.Update(msg)
-		}
-		if !m.input.Focused() {
-			if keypress == "w" {
+			return m, cmd
+		} else {
+			switch keypress {
+			case "w":
 				m.input_type = "normal"
 				m.input.Focus()
-			}
-			if keypress == "s" {
+			case "s":
 				m.input_type = "scrum"
 				m.input.Focus()
-			}
-			if keypress == "r" {
+			case "r":
 				setIssueListItems(&m)
-			}
-			if keypress == "e" {
-				issue_id := getSelectedItemTitle(&m.issues)
-				status := getSelectedItemStatus(&m.issues)
-				backend.IncrementIssueStatus(m.client, issue_id, status)
-				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You incremented status on %s issue", issue_id)))
-				setIssueListItems(&m)
-			}
-			if keypress == "E" {
-				issue_id := getSelectedItemTitle(&m.issues)
-				status := getSelectedItemStatus(&m.issues)
-				backend.DecrementIssueStatus(m.client, issue_id, status)
-				m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You decremented status on %s issue", issue_id)))
-				setIssueListItems(&m)
+			case "e":
+				changeIssueStatus(&m, "increment")
+			case "E":
+				changeIssueStatus(&m, "decrement")
+			default:
+				m.issues, cmd = m.issues.Update(msg)
+				return m, cmd
 			}
 		}
+	}
 
-	}
-	if !m.input.Focused() {
-		m.issues, cmd = m.issues.Update(msg)
-		return m, cmd
-	}
 	return m, nil
 }
 
