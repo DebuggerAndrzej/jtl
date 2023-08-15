@@ -49,6 +49,7 @@ func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) [
 					Key:              issue.Key,
 					Status:           issue.Fields.Status.Name,
 					ShortDescription: issue.Fields.Summary,
+					Description:      issue.Fields.Description,
 					OriginalEstimate: getJiraIssueEstimateAsString(
 						issue.Fields.TimeOriginalEstimate,
 					),

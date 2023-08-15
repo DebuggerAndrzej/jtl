@@ -7,22 +7,26 @@ import (
 	help "github.com/charmbracelet/bubbles/help"
 	list "github.com/charmbracelet/bubbles/list"
 	textinput "github.com/charmbracelet/bubbles/textinput"
+	viewport "github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	glamour "github.com/charmbracelet/glamour"
+	lipgloss "github.com/charmbracelet/lipgloss"
 
 	"jtl/backend"
 	"jtl/backend/entities"
 )
 
 type Model struct {
-	issues     list.Model
-	input      textinput.Model
-	err        error
-	loaded     bool
-	help       help.Model
-	keys       keyMap
-	client     *jira.Client
-	config     *entities.Config
-	input_type string
+	issues    list.Model
+	input     textinput.Model
+	issueDesc viewport.Model
+	err       error
+	loaded    bool
+	help      help.Model
+	keys      keyMap
+	client    *jira.Client
+	config    *entities.Config
+	inputType string
 }
 
 func New(jiraClient *jira.Client, config *entities.Config) *Model {
@@ -48,6 +52,8 @@ func (m *Model) initView(width, height int) {
 	m.issues.Title = "Issues"
 	m.issues.SetShowHelp(false)
 	setIssueListItems(m)
+	m.issueDesc = viewport.New(width/2-10, height-21)
+	setIssueDescription(m)
 }
 
 func getSelectedItemTitle(l *list.Model) string {
@@ -69,7 +75,7 @@ func getSelectedItemStatus(l *list.Model) string {
 func logHours(m *Model) tea.Cmd {
 	if timeToLog := m.input.Value(); timeToLog != "" {
 		issue_id := getSelectedItemTitle(&m.issues)
-		if m.input_type == "normal" {
+		if m.inputType == "normal" {
 			backend.LogHoursForIssue(m.client, issue_id, timeToLog)
 			m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", timeToLog, issue_id)))
 			setIssueListItems(m)
@@ -94,6 +100,15 @@ func changeIssueStatus(m *Model, changeType string) {
 	}
 	m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You %sed status on %s issue", changeType, issue_id)))
 	setIssueListItems(m)
+}
+
+func setIssueDescription(m *Model) {
+	var desc string
+	if i, ok := m.issues.SelectedItem().(entities.Issue); ok {
+		desc = i.Description
+	}
+	out, _ := glamour.Render(desc, "dark")
+	m.issueDesc.SetContent(out)
 }
 
 func (m Model) Init() tea.Cmd {
@@ -122,10 +137,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			switch keypress {
 			case "w":
-				m.input_type = "normal"
+				m.inputType = "normal"
 				m.input.Focus()
 			case "s":
-				m.input_type = "scrum"
+				m.inputType = "scrum"
 				m.input.Focus()
 			case "r":
 				setIssueListItems(&m)
@@ -135,6 +150,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				changeIssueStatus(&m, "decrement")
 			default:
 				m.issues, cmd = m.issues.Update(msg)
+				setIssueDescription(&m)
 				return m, cmd
 			}
 		}
@@ -146,9 +162,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	if m.loaded {
 		if m.input.Focused() {
-			return appStyle.Render(m.issues.View() + "\n" + m.input.View())
+			return appStyle.Render(
+				lipgloss.JoinHorizontal(
+					lipgloss.Left,
+					m.issues.View(),
+					viewportStyle.Render(m.issueDesc.View()),
+				) + "\n" + m.input.View(),
+			)
 		}
-		return appStyle.Render(m.issues.View() + "\n" + "  " + m.help.View(m.keys))
+		return appStyle.Render(
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				m.issues.View(),
+				viewportStyle.Render(m.issueDesc.View()),
+			) + "\n" + "  " + m.help.View(
+				m.keys,
+			),
+		)
 	}
 	return loadingStyle.Render("Loading...")
 

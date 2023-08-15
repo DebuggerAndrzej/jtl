@@ -4,6 +4,7 @@ type Issue struct {
 	Key              string
 	Status           string
 	ShortDescription string
+	Description      string
 	OriginalEstimate string
 	LoggedTime       string
 }
