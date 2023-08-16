@@ -16,17 +16,22 @@ import (
 	"jtl/backend/entities"
 )
 
+type finishedProcessing bool
+type issuesReloadRequired bool
+
 type Model struct {
-	issues    list.Model
-	input     textinput.Model
-	issueDesc viewport.Model
-	err       error
-	loaded    bool
-	help      help.Model
-	keys      keyMap
-	client    *jira.Client
-	config    *entities.Config
-	inputType string
+	issues          list.Model
+	input           textinput.Model
+	issueDesc       viewport.Model
+	err             error
+	loaded          bool
+	help            help.Model
+	keys            keyMap
+	client          *jira.Client
+	config          *entities.Config
+	inputType       string
+	loadingText     string
+	issueChangeType string
 }
 
 func New(jiraClient *jira.Client, config *entities.Config) *Model {
@@ -40,6 +45,9 @@ func setIssueListItems(m *Model) {
 		issues = append(issues, jiraIssue)
 	}
 	m.issues.SetItems(issues)
+}
+func (m *Model) enterLoadingScreen() tea.Msg {
+	return issuesReloadRequired(true)
 }
 
 func (m *Model) initView(width, height int) {
@@ -72,7 +80,7 @@ func getSelectedItemStatus(l *list.Model) string {
 	}
 }
 
-func logHours(m *Model) tea.Cmd {
+func (m *Model) logHours() tea.Msg {
 	if timeToLog := m.input.Value(); timeToLog != "" {
 		issue_id := getSelectedItemTitle(&m.issues)
 		if m.inputType == "normal" {
@@ -84,22 +92,25 @@ func logHours(m *Model) tea.Cmd {
 			m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue's scrum meetings", timeToLog, issue_id)))
 		}
 	}
-	m.input.Blur()
-	m.input.Reset()
-	_, cmd := m.input.Update(nil)
-	return cmd
+	return finishedProcessing(true)
 }
 
-func changeIssueStatus(m *Model, changeType string) {
+func (m *Model) changeIssueStatus() tea.Msg {
 	issue_id := getSelectedItemTitle(&m.issues)
 	status := getSelectedItemStatus(&m.issues)
-	if changeType == "increment" {
+	if m.issueChangeType == "increment" {
 		backend.IncrementIssueStatus(m.client, issue_id, status)
 	} else {
 		backend.DecrementIssueStatus(m.client, issue_id, status)
 	}
-	m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You %sed status on %s issue", changeType, issue_id)))
-	setIssueListItems(m)
+	m.issues.NewStatusMessage(
+		statusMessageStyle(fmt.Sprintf("You %sed status on %s issue", m.issueChangeType, issue_id)),
+	)
+	return finishedProcessing(true)
+}
+
+func (m *Model) dummyRefresh() tea.Msg {
+	return finishedProcessing(true)
 }
 
 func setIssueDescription(m *Model) {
@@ -129,8 +140,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.input.Focused() {
 			switch keypress {
 			case "enter":
-				cmd = logHours(&m)
-				return m, cmd
+				if m.input.Value() == "" {
+					m.input.Blur()
+					return m, nil
+				}
+				m.loadingText = "Logging hours for issue"
+				return m, tea.Sequence(m.enterLoadingScreen, m.logHours)
 			}
 			m.input, cmd = m.input.Update(msg)
 			return m, cmd
@@ -143,17 +158,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputType = "scrum"
 				m.input.Focus()
 			case "r":
-				setIssueListItems(&m)
+				m.loaded = false
+				m.loadingText = "Refreshing list of issues"
+				return m, m.dummyRefresh
 			case "e":
-				changeIssueStatus(&m, "increment")
+				m.issueChangeType = "increment"
+				m.loadingText = "Incrementing issues status"
+				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
 			case "E":
-				changeIssueStatus(&m, "decrement")
+				m.issueChangeType = "decrement"
+				m.loadingText = "Decrementing issues status"
+				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
 			default:
 				m.issues, cmd = m.issues.Update(msg)
 				setIssueDescription(&m)
 				return m, cmd
 			}
 		}
+	case issuesReloadRequired:
+		m.loaded = false
+	case finishedProcessing:
+		setIssueListItems(&m)
+		m.loaded = true
+		m.input.Blur()
+		m.input.Reset()
 	}
 
 	return m, nil
@@ -180,7 +208,10 @@ func (m Model) View() string {
 			),
 		)
 	}
-	return loadingStyle.Render("Loading...")
+	if m.loadingText == "" {
+		return loadingStyle.Render("Loading...")
+	}
+	return loadingStyle.Render(m.loadingText + "...")
 
 }
 
