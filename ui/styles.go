@@ -9,13 +9,17 @@ import (
 
 var (
 	width, height, _ = term.GetSize(int(os.Stdout.Fd()))
-	appStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).Width(width - 3)
+	appStyle         = lipgloss.NewStyle()
 	viewportStyle    = lipgloss.NewStyle().
-				Width(width/2-11).
+				Width(width/2-7).
 				Height(height-15).
 				MarginLeft(2).
-				MarginTop(1).
 				Border(lipgloss.RoundedBorder(), true)
+	actionsLogStyle = lipgloss.NewStyle().
+			Width(width/2-7).
+			Height(10).
+			MarginLeft(2).
+			Border(lipgloss.RoundedBorder(), true)
 	statusStyle  = lipgloss.NewStyle().Bold(true).PaddingLeft(5)
 	itemStyle    = lipgloss.NewStyle().MarginLeft(2).Width(width / 2)
 	loadingStyle = lipgloss.NewStyle().
@@ -29,4 +33,7 @@ var (
 	statusMessageStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
 				Render
+	successLog = lipgloss.NewStyle().SetString("SUCCESS: ").Foreground(lipgloss.Color("#AFE1AF"))
+	errorLog   = lipgloss.NewStyle().SetString("ERROR: ").Foreground(lipgloss.Color("#FF9999"))
+	warningLog = lipgloss.NewStyle().SetString("WARNING: ").Foreground(lipgloss.Color("#FAD5A5"))
 )

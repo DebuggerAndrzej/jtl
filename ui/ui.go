@@ -23,6 +23,8 @@ type Model struct {
 	issues          list.Model
 	input           textinput.Model
 	issueDesc       viewport.Model
+	actionsLog      viewport.Model
+	hoursSummary    viewport.Model
 	err             error
 	loaded          bool
 	help            help.Model
@@ -32,6 +34,7 @@ type Model struct {
 	inputType       string
 	loadingText     string
 	issueChangeType string
+	actionsHistory  string
 }
 
 func New(jiraClient *jira.Client, config *entities.Config) *Model {
@@ -57,11 +60,15 @@ func (m *Model) initView(width, height int) {
 	input.Placeholder = "Log hours in (float)h format"
 	m.input = input
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
-	m.issues.Title = "Issues"
 	m.issues.SetShowHelp(false)
+	m.issues.SetShowTitle(false)
+	m.issues.SetShowStatusBar(false)
 	setIssueListItems(m)
-	m.issueDesc = viewport.New(width/2-10, height-21)
+	m.issueDesc = viewport.New(width/2-7, height-15)
+	m.actionsLog = viewport.New(width/2-7, 10)
 	setIssueDescription(m)
+	m.actionsHistory += successLog.Render("Initialized JTL")
+	m.actionsLog.SetContent(m.actionsHistory)
 }
 
 func getSelectedItemTitle(l *list.Model) string {
@@ -131,7 +138,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if !m.loaded {
-			m.initView(msg.Width, msg.Height-3)
+			m.initView(msg.Width, msg.Height-1)
 			m.loaded = true
 		}
 		return m, nil
@@ -179,6 +186,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = false
 	case finishedProcessing:
 		setIssueListItems(&m)
+		m.actionsHistory += "\n" + successLog.Render("Refreshed jira issues")
+		m.actionsLog.SetContent(m.actionsHistory)
+		m.actionsLog.GotoBottom()
 		m.loaded = true
 		m.input.Blur()
 		m.input.Reset()
@@ -189,24 +199,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	if m.loaded {
-		if m.input.Focused() {
-			return appStyle.Render(
-				lipgloss.JoinHorizontal(
-					lipgloss.Left,
-					m.issues.View(),
-					viewportStyle.Render(m.issueDesc.View()),
-				) + "\n" + m.input.View(),
-			)
-		}
-		return appStyle.Render(
-			lipgloss.JoinHorizontal(
+		baseView := lipgloss.JoinHorizontal(
+			lipgloss.Left,
+			m.issues.View(),
+			lipgloss.JoinVertical(
 				lipgloss.Left,
-				m.issues.View(),
 				viewportStyle.Render(m.issueDesc.View()),
-			) + "\n" + "  " + m.help.View(
-				m.keys,
+				actionsLogStyle.Render(m.actionsLog.View()),
 			),
 		)
+		if m.input.Focused() {
+			return appStyle.Render(baseView + "\n " + m.input.View())
+		}
+		return appStyle.Render(baseView + "\n " + m.help.View(m.keys))
 	}
 	if m.loadingText == "" {
 		return loadingStyle.Render("Loading...")
