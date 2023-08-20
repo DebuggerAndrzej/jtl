@@ -7,7 +7,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"jtl/backend/entities"
+	"github.com/DebuggerAndrzej/jtl/backend/entities"
 )
 
 func GetTomlConfig() *entities.Config {

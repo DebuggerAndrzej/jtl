@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"jtl/backend/entities"
+	"github.com/DebuggerAndrzej/jtl/backend/entities"
 )
 
 type item string

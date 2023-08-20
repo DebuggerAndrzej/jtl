@@ -7,7 +7,7 @@ import (
 
 	jira "github.com/andygrunwald/go-jira"
 
-	"jtl/backend/entities"
+	"github.com/DebuggerAndrzej/jtl/backend/entities"
 )
 
 func getJiraIssueEstimateAsString(estimate int) string {

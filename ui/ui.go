@@ -14,8 +14,8 @@ import (
 	glamour "github.com/charmbracelet/glamour"
 	lipgloss "github.com/charmbracelet/lipgloss"
 
-	"jtl/backend"
-	"jtl/backend/entities"
+	"github.com/DebuggerAndrzej/jtl/backend"
+	"github.com/DebuggerAndrzej/jtl/backend/entities"
 )
 
 type finishedProcessing bool

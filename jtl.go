@@ -1,8 +1,8 @@
 package main
 
 import (
-	"jtl/backend"
-	"jtl/ui"
+	"github.com/DebuggerAndrzej/jtl/backend"
+	"github.com/DebuggerAndrzej/jtl/ui"
 )
 
 func main() {
