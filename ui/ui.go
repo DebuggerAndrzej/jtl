@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	jira "github.com/andygrunwald/go-jira"
 	help "github.com/charmbracelet/bubbles/help"
@@ -35,6 +37,7 @@ type Model struct {
 	loadingText     string
 	issueChangeType string
 	actionsHistory  string
+	loggedInSession float64
 }
 
 func New(jiraClient *jira.Client, config *entities.Config) *Model {
@@ -63,6 +66,7 @@ func (m *Model) initView(width, height int) {
 	m.issues.SetShowHelp(false)
 	m.issues.SetShowTitle(false)
 	m.issues.SetShowStatusBar(false)
+	m.issues.SetFilteringEnabled(false)
 	setIssueListItems(m)
 	m.issueDesc = viewport.New(width/2-7, height-15)
 	m.actionsLog = viewport.New(width/2-7, 10)
@@ -92,11 +96,8 @@ func (m *Model) logHours() tea.Msg {
 		issue_id := getSelectedItemTitle(&m.issues)
 		if m.inputType == "normal" {
 			backend.LogHoursForIssue(m.client, issue_id, timeToLog)
-			m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue", timeToLog, issue_id)))
-			setIssueListItems(m)
 		} else {
 			backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, timeToLog)
-			m.issues.NewStatusMessage(statusMessageStyle(fmt.Sprintf("You logged %s on %s issue's scrum meetings", timeToLog, issue_id)))
 		}
 	}
 	return finishedProcessing(true)
@@ -152,6 +153,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 				m.loadingText = "Logging hours for issue"
+
+				logged, _ := time.ParseDuration(m.input.Value())
+				m.loggedInSession += logged.Hours()
+				loggedInSessionStr := fmt.Sprintf(
+					"%sh",
+					strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", m.loggedInSession), "0"), "."),
+				)
+				if m.inputType == "normal" {
+					m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Logged  %s hours on %s Issue. Logged in session: %s", m.input.Value(), getSelectedItemTitle(&m.issues), loggedInSessionStr))
+				} else {
+					m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Logged  %s hours on %s scrum Issue. Logged in session: %s", m.input.Value(), getSelectedItemTitle(&m.issues), loggedInSessionStr))
+				}
+
 				return m, tea.Sequence(m.enterLoadingScreen, m.logHours)
 			}
 			m.input, cmd = m.input.Update(msg)
@@ -170,10 +184,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.dummyRefresh
 			case "e":
 				m.issueChangeType = "increment"
+				m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Incremented %s status", getSelectedItemTitle(&m.issues)))
 				m.loadingText = "Incrementing issues status"
 				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
 			case "E":
 				m.issueChangeType = "decrement"
+				m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Decremented %s status", getSelectedItemTitle(&m.issues)))
 				m.loadingText = "Decrementing issues status"
 				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
 			default:

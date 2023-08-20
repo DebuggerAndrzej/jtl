@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"jtl/backend/entities"
 )
@@ -25,21 +26,16 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if !ok {
 		return
 	}
+	estimateTime := estimateTimeStyle.Render(fmt.Sprintf("%s of %s", i.LoggedTime, i.OriginalEstimate))
+	firstRow := rowStyle.Render(keyStyle.Render(i.Key) + estimateTime + statusStyle.Render(i.Status))
+	secondRow := rowStyle.Render(i.ShortDescription)
 
-	str := fmt.Sprintf(
-		"%d. %s    logged %s of %s estimate  %s \n %s",
-		index+1,
-		i.Key,
-		i.LoggedTime,
-		i.OriginalEstimate,
-		statusStyle.Render(i.Status),
-		i.ShortDescription,
-	)
+	singleIssue := lipgloss.JoinVertical(lipgloss.Left, firstRow, secondRow)
 
 	if index == m.Index() {
-		fmt.Fprint(w, selectedItemStyle.Render(str))
+		fmt.Fprint(w, selectedItemStyle.Render(singleIssue))
 	} else {
-		fmt.Fprint(w, itemStyle.Render(str))
+		fmt.Fprint(w, singleIssue)
 	}
 
 }
