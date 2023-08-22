@@ -64,9 +64,10 @@ func (m *Model) initView(width, height int) {
 	m.input = input
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
 	m.issues.SetShowHelp(false)
-	m.issues.SetShowTitle(false)
 	m.issues.SetShowStatusBar(false)
 	m.issues.SetFilteringEnabled(false)
+	m.issues.Styles.Title = lipgloss.NewStyle()
+	m.issues.Title = ""
 	setIssueListItems(m)
 	m.issueDesc = viewport.New(width/2-7, height-15)
 	m.actionsLog = viewport.New(width/2-7, 10)

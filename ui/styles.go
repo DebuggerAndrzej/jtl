@@ -38,5 +38,4 @@ var (
 	keyStyle          = lipgloss.NewStyle().Width(20)
 	statusStyle       = lipgloss.NewStyle().Bold(true)
 	rowStyle          = lipgloss.NewStyle().Width(width / 2).PaddingLeft(2)
-	issuesListStyle   = lipgloss.NewStyle().PaddingTop(2)
 )

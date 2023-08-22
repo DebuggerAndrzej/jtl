@@ -2,6 +2,7 @@ package backend
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,12 +40,13 @@ func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) [
 		return nil
 	}
 
-	var iss []entities.Issue
+	var mappedIssues []entities.Issue
+	activeIssueStatuses := []string{"Open", "In Progress", "In Review"}
 
 	for _, issue := range issues {
-		if issue.Fields.Status.Name != "Done" {
-			iss = append(
-				iss,
+		if slices.Contains(activeIssueStatuses, issue.Fields.Status.Name) {
+			mappedIssues = append(
+				mappedIssues,
 				entities.Issue{
 					Key:              issue.Key,
 					Status:           issue.Fields.Status.Name,
@@ -59,7 +61,7 @@ func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) [
 		}
 	}
 
-	return iss
+	return mappedIssues
 }
 
 func LogHoursForIssue(client *jira.Client, id, time string) {
