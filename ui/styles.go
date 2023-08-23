@@ -34,6 +34,8 @@ var (
 	successLog        = lipgloss.NewStyle().SetString("SUCCESS: ").Foreground(lipgloss.Color("#AFE1AF"))
 	errorLog          = lipgloss.NewStyle().SetString("ERROR: ").Foreground(lipgloss.Color("#FF9999"))
 	warningLog        = lipgloss.NewStyle().SetString("WARNING: ").Foreground(lipgloss.Color("#FAD5A5"))
+	infoLog           = lipgloss.NewStyle().SetString("INFO: ")
+	estimateLog       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#00FFF6"))
 	estimateTimeStyle = lipgloss.NewStyle().Width(20)
 	keyStyle          = lipgloss.NewStyle().Width(20)
 	statusStyle       = lipgloss.NewStyle().Bold(true)

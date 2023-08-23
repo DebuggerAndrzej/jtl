@@ -18,7 +18,7 @@ import (
 	"github.com/DebuggerAndrzej/jtl/backend/entities"
 )
 
-type finishedProcessing bool
+type finishedProcessing string
 type issuesReloadRequired bool
 
 type Model struct {
@@ -44,13 +44,17 @@ func New(jiraClient *jira.Client, config *entities.Config) *Model {
 	return &Model{client: jiraClient, config: config}
 }
 
-func setIssueListItems(m *Model) {
-	jiraIssues := backend.GetAllJiraIssuesForAssignee(m.client, m.config)
+func setIssueListItems(m *Model) error {
+	jiraIssues, err := backend.GetAllJiraIssuesForAssignee(m.client, m.config)
+	if err != nil {
+		return err
+	}
 	var issues []list.Item
 	for _, jiraIssue := range jiraIssues {
 		issues = append(issues, jiraIssue)
 	}
 	m.issues.SetItems(issues)
+	return nil
 }
 func (m *Model) enterLoadingScreen() tea.Msg {
 	return issuesReloadRequired(true)
@@ -68,11 +72,17 @@ func (m *Model) initView(width, height int) {
 	m.issues.SetFilteringEnabled(false)
 	m.issues.Styles.Title = lipgloss.NewStyle()
 	m.issues.Title = ""
-	setIssueListItems(m)
+	err := setIssueListItems(m)
+	if err != nil {
+		m.actionsHistory += errorLog.Render(
+			"Couldn't get issues from Jira API. Check internet connection and vpn if applicable.",
+		)
+	} else {
+		m.actionsHistory += successLog.Render("Initialized JTL")
+	}
 	m.issueDesc = viewport.New(width/2-7, height-15)
 	m.actionsLog = viewport.New(width/2-7, 10)
 	setIssueDescription(m)
-	m.actionsHistory += successLog.Render("Initialized JTL")
 	m.actionsLog.SetContent(m.actionsHistory)
 }
 
@@ -93,33 +103,40 @@ func getSelectedItemStatus(l *list.Model) string {
 }
 
 func (m *Model) logHours() tea.Msg {
+	var err error
 	if timeToLog := m.input.Value(); timeToLog != "" {
 		issue_id := getSelectedItemTitle(&m.issues)
 		if m.inputType == "normal" {
-			backend.LogHoursForIssue(m.client, issue_id, timeToLog)
+			err = backend.LogHoursForIssue(m.client, issue_id, timeToLog)
 		} else {
-			backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, timeToLog)
+			err = backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, timeToLog)
 		}
 	}
-	return finishedProcessing(true)
+
+	if err != nil {
+		return finishedProcessing(err.Error())
+	}
+	return finishedProcessing("")
 }
 
 func (m *Model) changeIssueStatus() tea.Msg {
+	var err error
 	issue_id := getSelectedItemTitle(&m.issues)
 	status := getSelectedItemStatus(&m.issues)
 	if m.issueChangeType == "increment" {
-		backend.IncrementIssueStatus(m.client, issue_id, status)
+		err = backend.IncrementIssueStatus(m.client, issue_id, status)
 	} else {
-		backend.DecrementIssueStatus(m.client, issue_id, status)
+		err = backend.DecrementIssueStatus(m.client, issue_id, status)
 	}
-	m.issues.NewStatusMessage(
-		statusMessageStyle(fmt.Sprintf("You %sed status on %s issue", m.issueChangeType, issue_id)),
-	)
-	return finishedProcessing(true)
+
+	if err != nil {
+		return finishedProcessing(err.Error())
+	}
+	return finishedProcessing("")
 }
 
 func (m *Model) dummyRefresh() tea.Msg {
-	return finishedProcessing(true)
+	return finishedProcessing("")
 }
 
 func setIssueDescription(m *Model) {
@@ -155,16 +172,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.loadingText = "Logging hours for issue"
 
-				logged, _ := time.ParseDuration(m.input.Value())
-				m.loggedInSession += logged.Hours()
-				loggedInSessionStr := fmt.Sprintf(
-					"%sh",
-					strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", m.loggedInSession), "0"), "."),
-				)
 				if m.inputType == "normal" {
-					m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Logged  %s hours on %s Issue. Logged in session: %s", m.input.Value(), getSelectedItemTitle(&m.issues), loggedInSessionStr))
+					m.actionsHistory += "\n" + infoLog.Render(fmt.Sprintf("Logging  %s hours on %s Issue.", m.input.Value(), getSelectedItemTitle(&m.issues)))
 				} else {
-					m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Logged  %s hours on %s scrum Issue. Logged in session: %s", m.input.Value(), getSelectedItemTitle(&m.issues), loggedInSessionStr))
+					m.actionsHistory += "\n" + infoLog.Render(fmt.Sprintf("Logging  %s hours on %s scrum Issue.", m.input.Value(), getSelectedItemTitle(&m.issues)))
 				}
 
 				return m, tea.Sequence(m.enterLoadingScreen, m.logHours)
@@ -185,12 +196,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.dummyRefresh
 			case "e":
 				m.issueChangeType = "increment"
-				m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Incremented %s status", getSelectedItemTitle(&m.issues)))
+				m.actionsHistory += "\n" + infoLog.Render(fmt.Sprintf("Incrementing %s status", getSelectedItemTitle(&m.issues)))
 				m.loadingText = "Incrementing issues status"
 				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
 			case "E":
 				m.issueChangeType = "decrement"
-				m.actionsHistory += "\n" + successLog.Render(fmt.Sprintf("Decremented %s status", getSelectedItemTitle(&m.issues)))
+				m.actionsHistory += "\n" + infoLog.Render(fmt.Sprintf("Decrementing %s status", getSelectedItemTitle(&m.issues)))
 				m.loadingText = "Decrementing issues status"
 				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
 			default:
@@ -202,8 +213,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case issuesReloadRequired:
 		m.loaded = false
 	case finishedProcessing:
-		setIssueListItems(&m)
-		m.actionsHistory += "\n" + successLog.Render("Refreshed jira issues")
+		if commandError := string(msg); commandError != "" {
+			m.actionsHistory += "\n" + errorLog.Render(commandError)
+		} else {
+			m.actionsHistory += "\n" + successLog.Render("Last command executed successfully")
+			if m.input.Value() != "" {
+				logged, _ := time.ParseDuration(m.input.Value())
+				m.loggedInSession += logged.Hours()
+				loggedInSessionStr := fmt.Sprintf(
+					"%sh",
+					strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", m.loggedInSession), "0"), "."),
+				)
+				m.actionsHistory += "\n" + estimateLog.Render(fmt.Sprintf("Logged in session: %s", loggedInSessionStr))
+			}
+		}
+		err := setIssueListItems(&m)
+		if err != nil {
+			m.actionsHistory += "\n" + errorLog.Render("Couldn't get issues from Jira API. Check internet connection and vpn if applicable.")
+		} else {
+			m.actionsHistory += "\n" + successLog.Render("Refreshed jira issues")
+		}
 		m.actionsLog.SetContent(m.actionsHistory)
 		m.actionsLog.GotoBottom()
 		m.loaded = true

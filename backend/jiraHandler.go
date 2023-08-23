@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -23,12 +24,17 @@ func getJiraIssueEstimateAsString(estimate int) string {
 func GetJiraClient(config *entities.Config) *jira.Client {
 	base := config.JiraBaseUrl
 	tp := jira.BasicAuthTransport{Username: config.Username, Password: config.Password}
-	client, _ := jira.NewClient(tp.Client(), base)
+	client, err := jira.NewClient(tp.Client(), base)
+
+	if err != nil {
+		panic("Couldn't get jira client. Please check provided config, internet connection and vpn if applicable")
+	}
+
 	return client
 
 }
 
-func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) []entities.Issue {
+func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) ([]entities.Issue, error) {
 	var jql string
 	if config.AdditionalIssues != "" {
 		jql = fmt.Sprintf("assignee = currentuser() OR key in (%s)", config.AdditionalIssues)
@@ -37,7 +43,7 @@ func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) [
 	}
 	issues, _, err := client.Issue.Search(jql, nil)
 	if err != nil {
-		return nil
+		return nil, errors.New("Couldn't get issues from Jira API. Check internet connection and vpn if applicable.")
 	}
 
 	var mappedIssues []entities.Issue
@@ -61,16 +67,26 @@ func GetAllJiraIssuesForAssignee(client *jira.Client, config *entities.Config) [
 		}
 	}
 
-	return mappedIssues
+	return mappedIssues, nil
 }
 
-func LogHoursForIssue(client *jira.Client, id, time string) {
-	client.Issue.AddWorklogRecord(id, &jira.WorklogRecord{TimeSpent: time})
+func LogHoursForIssue(client *jira.Client, id, time string) error {
+	_, _, err := client.Issue.AddWorklogRecord(id, &jira.WorklogRecord{TimeSpent: time})
+	if err != nil {
+		return errors.New(fmt.Sprintf("Couldn't add worklog to %s issue", id))
+	}
+	return nil
 }
 
-func LogHoursForIssuesScrumMeetings(client *jira.Client, issueId, timeToLog string) {
-	issueCustomFields, _, _ := client.Issue.GetCustomFields(issueId)
-	issuesEpic, _, _ := client.Issue.Get(issueCustomFields["customfield_12790"], nil)
+func LogHoursForIssuesScrumMeetings(client *jira.Client, issueId, timeToLog string) error {
+	issueCustomFields, _, err := client.Issue.GetCustomFields(issueId)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Couldn't get %s issue's custom fields", issueId))
+	}
+	issuesEpic, _, err := client.Issue.Get(issueCustomFields["customfield_12790"], nil)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Couldn't find epic for %s issue", issueId))
+	}
 	var scrumIssue string
 	for _, issueLink := range issuesEpic.Fields.IssueLinks {
 		outwardIssue := issueLink.OutwardIssue
@@ -80,29 +96,36 @@ func LogHoursForIssuesScrumMeetings(client *jira.Client, issueId, timeToLog stri
 	}
 	if scrumIssue != "" {
 		LogHoursForIssue(client, scrumIssue, timeToLog)
+	} else {
+		return errors.New(fmt.Sprintf("Couldn't find scrum issue for %s issue under %s epic", issueId, issuesEpic))
 	}
+	return nil
 }
 
-func IncrementIssueStatus(client *jira.Client, id, status string) {
+func IncrementIssueStatus(client *jira.Client, id, status string) error {
+	var err error
 	switch status {
 	case "Open":
-		doTransitionToStatus(client, id, "In Progress")
+		err = doTransitionToStatus(client, id, "In Progress")
 	case "In Progress":
-		doTransitionToStatus(client, id, "In Review")
+		err = doTransitionToStatus(client, id, "In Review")
 	case "In Review":
-		doTransitionToStatus(client, id, "Done")
+		err = doTransitionToStatus(client, id, "Done")
 	}
+	return err
 }
-func DecrementIssueStatus(client *jira.Client, id, status string) {
+func DecrementIssueStatus(client *jira.Client, id, status string) error {
+	var err error
 	switch status {
 	case "In Progress":
-		doTransitionToStatus(client, id, "Re-open")
+		err = doTransitionToStatus(client, id, "Re-open")
 	case "In Review":
-		doTransitionToStatus(client, id, "In Progress")
+		err = doTransitionToStatus(client, id, "In Progress")
 	}
+	return err
 }
 
-func doTransitionToStatus(client *jira.Client, id, status string) {
+func doTransitionToStatus(client *jira.Client, id, status string) error {
 	var transitionID string
 	possibleTransitions, _, _ := client.Issue.GetTransitions(id)
 	for _, v := range possibleTransitions {
@@ -112,5 +135,12 @@ func doTransitionToStatus(client *jira.Client, id, status string) {
 		}
 	}
 
-	client.Issue.DoTransition(id, transitionID)
+	if transitionID != "" {
+		_, err := client.Issue.DoTransition(id, transitionID)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Couldn't change status for %s issue", id))
+		}
+		return nil
+	}
+	return errors.New(fmt.Sprintf("Couldn't find transitionID required to change issues status for %s issue", id))
 }
