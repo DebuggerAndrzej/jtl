@@ -10,7 +10,6 @@ import (
 	viewport "github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	glamour "github.com/charmbracelet/glamour"
-	lipgloss "github.com/charmbracelet/lipgloss"
 
 	"github.com/DebuggerAndrzej/jtl/backend"
 	"github.com/DebuggerAndrzej/jtl/backend/entities"
@@ -102,12 +101,11 @@ func (m *Model) initView(width, height int) {
 	input := textinput.New()
 	input.Placeholder = "Log hours in (float)h format"
 	m.input = input
-	m.issues = list.New([]list.Item{}, itemDelegate{}, width, height)
+	m.issues = list.New([]list.Item{}, itemDelegate{}, width/2, height-5)
 	m.issues.SetShowHelp(false)
 	m.issues.SetShowStatusBar(false)
 	m.issues.SetFilteringEnabled(false)
-	m.issues.Styles.Title = lipgloss.NewStyle()
-	m.issues.Title = ""
+	m.issues.SetShowTitle(false)
 	err := m.setIssueListItems()
 	if err != nil {
 		m.actionsHistory += errorLog.Render(
@@ -118,6 +116,8 @@ func (m *Model) initView(width, height int) {
 	}
 	m.issueDesc = viewport.New(width/2-7, height-15)
 	m.actionsLog = viewport.New(width/2-7, 10)
+	m.hoursSummary = viewport.New((width/2)+2, 4)
+	m.hoursSummary.SetContent(loggedStyle.Render(fmt.Sprintf("Logged in session: %s", loggedTimeStyle.Render("0h"))))
 	m.setIssueDescription()
 	m.actionsLog.SetContent(m.actionsHistory)
 }

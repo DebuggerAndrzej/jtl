@@ -40,4 +40,11 @@ var (
 	keyStyle          = lipgloss.NewStyle().Width(20)
 	statusStyle       = lipgloss.NewStyle().Bold(true)
 	rowStyle          = lipgloss.NewStyle().Width(width / 2).PaddingLeft(2)
+	loggedStyle       = lipgloss.NewStyle().
+				Width((width / 2) + 2).
+				Bold(true).
+				Foreground(lipgloss.Color("#5E81AC")).
+				MarginTop(1).
+				Align(lipgloss.Center)
+	loggedTimeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#AFE1AF"))
 )

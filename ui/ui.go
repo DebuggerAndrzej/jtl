@@ -88,10 +88,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					"%sh",
 					strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", m.loggedInSession), "0"), "."),
 				)
-				m.actionsHistory += "\n" + estimateLog.Render(fmt.Sprintf("Logged in session: %s", loggedInSessionStr))
+				if loggedInSessionStr == "8h" {
+					m.hoursSummary.SetContent(loggedStyle.Render(loggedTimeStyle.Render("Great job, see you tomorrow! :)")))
+				} else {
+					m.hoursSummary.SetContent(loggedStyle.Render(fmt.Sprintf("Logged in session: %s", loggedTimeStyle.Render(loggedInSessionStr))))
+				}
 			}
 		}
-		if err:= m.setIssueListItems(); err != nil {
+		if err := m.setIssueListItems(); err != nil {
 			m.actionsHistory += "\n" + errorLog.Render("Couldn't get issues from Jira API. Check internet connection and vpn if applicable.")
 		} else {
 			m.actionsHistory += "\n" + successLog.Render("Refreshed jira issues")
@@ -118,7 +122,11 @@ func (m Model) View() string {
 	if m.loaded {
 		baseView := lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			m.issues.View(),
+			lipgloss.JoinVertical(
+				lipgloss.Left,
+				m.hoursSummary.View(),
+				m.issues.View(),
+			),
 			lipgloss.JoinVertical(
 				lipgloss.Left,
 				viewportStyle.Render(m.issueDesc.View()),
