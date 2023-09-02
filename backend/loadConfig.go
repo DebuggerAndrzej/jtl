@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -9,15 +10,19 @@ import (
 	"github.com/DebuggerAndrzej/jtl/backend/entities"
 )
 
-func GetTomlConfig() *entities.Config {
+func GetTomlConfig(configPath string) *entities.Config {
 	var config entities.Config
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic("Couldn't determing user's home dir!")
+	if configPath == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			panic("Couldn't determing user's home dir!")
+		}
+		configPath = path.Join(homeDir, ".config/jtl.toml")
 	}
-	if _, err := toml.DecodeFile(path.Join(homeDir, ".config/jtl.toml"), &config); err != nil {
-		panic("Couldn't load config file. Check if  ~/.config/jtl.toml file exists!")
+
+	if _, err := toml.DecodeFile(configPath, &config); err != nil {
+		panic(fmt.Sprintf("Couldn't load config file. Check if %s file exists!", configPath))
 	}
 
 	return &config
