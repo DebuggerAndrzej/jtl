@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+
 	jira "github.com/andygrunwald/go-jira"
 	help "github.com/charmbracelet/bubbles/help"
 	list "github.com/charmbracelet/bubbles/list"
@@ -39,39 +41,46 @@ func (m *Model) enterLoadingScreen() tea.Msg {
 
 func (m *Model) logHours() tea.Msg {
 	var err error
+	var successMsg string
 	if timeToLog := m.input.Value(); timeToLog != "" {
 		issue_id := m.getSelectedItemTitle()
 		if m.inputType == "normal" {
+			successMsg = fmt.Sprintf("Logged  %s hours on %s Issue.", m.input.Value(), m.getSelectedItemTitle())
 			err = backend.LogHoursForIssue(m.client, issue_id, timeToLog)
 		} else {
+			successMsg = fmt.Sprintf("Logged  %s hours on %s Scrum Issue.", m.input.Value(), m.getSelectedItemTitle())
 			err = backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, timeToLog)
 		}
 	}
 
 	if err != nil {
-		return finishedProcessing(err.Error())
+		return failedProcessing(err.Error())
 	}
-	return finishedProcessing("")
+
+	return successProcessing(successMsg)
 }
 
 func (m *Model) changeIssueStatus() tea.Msg {
 	var err error
+	var successMsg string
 	issue_id := m.getSelectedItemTitle()
 	status := m.getSelectedItemStatus()
 	if m.issueChangeType == "increment" {
+		successMsg = fmt.Sprintf("Incremented %s status", m.getSelectedItemTitle())
 		err = backend.IncrementIssueStatus(m.client, issue_id, status)
 	} else {
+		successMsg = fmt.Sprintf("Decremented %s status", m.getSelectedItemTitle())
 		err = backend.DecrementIssueStatus(m.client, issue_id, status)
 	}
 
 	if err != nil {
-		return finishedProcessing(err.Error())
+		return failedProcessing(err.Error())
 	}
-	return finishedProcessing("")
+	return successProcessing(successMsg)
 }
 
 func (m *Model) dummyRefresh() tea.Msg {
-	return finishedProcessing("")
+	return successProcessing("")
 }
 
 func (m *Model) setIssueListItems() error {
