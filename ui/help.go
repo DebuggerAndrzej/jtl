@@ -8,6 +8,8 @@ type keyMap struct {
 	IncrementStatus key.Binding
 	DecrementStatus key.Binding
 	RefreshIssues   key.Binding
+	AddIssue        key.Binding
+	RemoveIssue     key.Binding
 	Quit            key.Binding
 }
 
@@ -18,6 +20,8 @@ func (k keyMap) ShortHelp() []key.Binding {
 		k.RefreshIssues,
 		k.IncrementStatus,
 		k.DecrementStatus,
+		k.AddIssue,
+		k.RemoveIssue,
 		k.Quit,
 	}
 }
@@ -50,5 +54,13 @@ var keys = keyMap{
 	Quit: key.NewBinding(
 		key.WithKeys("q", "esc", "ctrl+c"),
 		key.WithHelp("q", "quit"),
+	),
+	AddIssue: key.NewBinding(
+		key.WithKeys("A"),
+		key.WithHelp("A", "Add issue by number"),
+	),
+	RemoveIssue: key.NewBinding(
+		key.WithKeys("D"),
+		key.WithHelp("D", "Remove selected issue"),
 	),
 }

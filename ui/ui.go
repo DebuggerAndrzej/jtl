@@ -16,8 +16,8 @@ type successProcessing string
 type failedProcessing string
 type issuesReloadRequired bool
 
-func New(jiraClient *jira.Client, config *entities.Config) *Model {
-	return &Model{client: jiraClient, config: config}
+func New(jiraClient *jira.Client, config *entities.Config, configPath string) *Model {
+	return &Model{client: jiraClient, config: config, configPath: configPath}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -42,8 +42,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.input.Blur()
 					return m, nil
 				}
-				m.loadingText = "Logging hours for issue"
+				if m.inputType == "add issue" {
+					m.loadingText = fmt.Sprintf("Adding issue with id %s", m.input.Value())
+					return m, tea.Sequence(m.enterLoadingScreen, m.addIssue)
+				}
 
+				m.loadingText = "Logging hours for issue"
 				return m, tea.Sequence(m.enterLoadingScreen, m.logHours)
 			}
 			m.input, cmd = m.input.Update(msg)
@@ -68,6 +72,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.issueChangeType = "decrement"
 				m.loadingText = "Decrementing issues status"
 				return m, tea.Sequence(m.enterLoadingScreen, m.changeIssueStatus)
+			case "A":
+				m.inputType = "add issue"
+				m.input.Focus()
+			case "D":
+				return m, tea.Sequence(m.enterLoadingScreen, m.removeIssue)
 			default:
 				m.issues, cmd = m.issues.Update(msg)
 				m.setIssueDescription()
@@ -145,8 +154,8 @@ func (m Model) View() string {
 
 }
 
-func InitTui(config *entities.Config, jiraClient *jira.Client) {
-	m := New(jiraClient, config)
+func InitTui(config *entities.Config, jiraClient *jira.Client, configPath string) {
+	m := New(jiraClient, config, configPath)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {

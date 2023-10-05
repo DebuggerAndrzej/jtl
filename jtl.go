@@ -13,5 +13,5 @@ func main() {
 
 	config := backend.GetTomlConfig(*configPath)
 	client := backend.GetJiraClient(config)
-	ui.InitTui(config, client)
+	ui.InitTui(config, client, *configPath)
 }

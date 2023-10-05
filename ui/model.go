@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 
 	jira "github.com/andygrunwald/go-jira"
 	help "github.com/charmbracelet/bubbles/help"
@@ -32,23 +33,41 @@ type Model struct {
 	issueChangeType string
 	actionsHistory  string
 	loggedInSession float64
+	configPath      string
 }
 
 func (m *Model) enterLoadingScreen() tea.Msg {
 	return issuesReloadRequired(true)
 }
 
+func (m *Model) addIssue() tea.Msg {
+	_, err := strconv.ParseInt(m.input.Value(), 10, 64)
+
+	if err != nil {
+		return failedProcessing("Please provide a number.")
+	}
+	backend.AddIssueToConfig(m.configPath, m.input.Value(), m.config)
+	return successProcessing(fmt.Sprintf("Issue %s added to config", m.input.Value()))
+
+}
+func (m *Model) removeIssue() tea.Msg {
+	issueId := m.getSelectedItemTitle()
+	backend.RemoveIssueFromConfig(m.configPath, issueId, m.config)
+	return successProcessing(fmt.Sprintf("Issue %s removed from config", issueId))
+
+}
+
 func (m *Model) logHours() tea.Msg {
 	var err error
 	var successMsg string
 	if timeToLog := m.input.Value(); timeToLog != "" {
-		issue_id := m.getSelectedItemTitle()
+		issueId := m.getSelectedItemTitle()
 		if m.inputType == "normal" {
 			successMsg = fmt.Sprintf("Logged  %s hours on %s Issue.", m.input.Value(), m.getSelectedItemTitle())
-			err = backend.LogHoursForIssue(m.client, issue_id, timeToLog)
+			err = backend.LogHoursForIssue(m.client, issueId, timeToLog)
 		} else {
 			successMsg = fmt.Sprintf("Logged  %s hours on %s Scrum Issue.", m.input.Value(), m.getSelectedItemTitle())
-			err = backend.LogHoursForIssuesScrumMeetings(m.client, issue_id, timeToLog)
+			err = backend.LogHoursForIssuesScrumMeetings(m.client, issueId, timeToLog)
 		}
 	}
 
@@ -99,7 +118,6 @@ func (m *Model) initView(width, height int) {
 	m.keys = keys
 	m.help = help.New()
 	input := textinput.New()
-	input.Placeholder = "Log hours in (float)h format"
 	m.input = input
 	m.issues = list.New([]list.Item{}, itemDelegate{}, width/2, height-5)
 	m.issues.SetShowHelp(false)
